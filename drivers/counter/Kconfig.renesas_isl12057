@@ -1,0 +1,17 @@
+# Copyright (c) 2021 Matija Tudan
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+config COUNTER_RENESAS_ISL12057
+	bool "Renesas ISL12057 RTC"
+	depends on I2C
+	help
+	  Enable counter driver based on Renesas ISL12057 I2C device.
+
+config COUNTER_RENESAS_ISL12057_INIT_PRIORITY
+	int "Init priority"
+	depends on COUNTER_RENESAS_ISL12057
+	default 65
+	help
+	  ISL12057 device driver initialization priority.
