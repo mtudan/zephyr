@@ -5,27 +5,20 @@
  */
 
 #include <zephyr.h>
+#include <device.h>
 #include <sys/printk.h>
+#include <devicetree.h>
 #include <drivers/adc.h>
 
-#if !DT_NODE_EXISTS(DT_PATH(zephyr_user)) || \
-	!DT_NODE_HAS_PROP(DT_PATH(zephyr_user), io_channels)
-#error "No suitable devicetree overlay specified"
+#define ADS1015 DT_INST(0, ti_ads1015)
+#if DT_NODE_HAS_STATUS(ADS1015, okay)
+#define ADS1015_LABEL DT_LABEL(ADS1015)
+#else
+#error Your devicetree has no enabled nodes with compatible "ti,ads1015"
+#define ADS1015_LABEL "<none>"
 #endif
 
-#define ADC_NUM_CHANNELS	DT_PROP_LEN(DT_PATH(zephyr_user), io_channels)
-
-#if ADC_NUM_CHANNELS > 2
-#error "Currently only 1 or 2 channels supported in this sample"
-#endif
-
-#if ADC_NUM_CHANNELS == 2 && !DT_SAME_NODE( \
-	DT_PHANDLE_BY_IDX(DT_PATH(zephyr_user), io_channels, 0), \
-	DT_PHANDLE_BY_IDX(DT_PATH(zephyr_user), io_channels, 1))
-#error "Channels have to use the same ADC."
-#endif
-
-#define ADC_NODE		DT_PHANDLE(DT_PATH(zephyr_user), io_channels)
+#define ADC_NUM_CHANNELS	1
 
 /* Common settings supported by most ADCs */
 #define ADC_RESOLUTION		12
@@ -34,12 +27,13 @@
 #define ADC_ACQUISITION_TIME	ADC_ACQ_TIME_DEFAULT
 
 /* Get the numbers of up to two channels */
-static uint8_t channel_ids[ADC_NUM_CHANNELS] = {
-	DT_IO_CHANNELS_INPUT_BY_IDX(DT_PATH(zephyr_user), 0),
-#if ADC_NUM_CHANNELS == 2
-	DT_IO_CHANNELS_INPUT_BY_IDX(DT_PATH(zephyr_user), 1)
-#endif
-};
+static uint8_t channel_ids[ADC_NUM_CHANNELS];
+// static uint8_t channel_ids[ADC_NUM_CHANNELS] = {
+// 	DT_IO_CHANNELS_INPUT_BY_IDX(DT_PATH(zephyr_user), 0),
+// #if ADC_NUM_CHANNELS == 2
+// 	DT_IO_CHANNELS_INPUT_BY_IDX(DT_PATH(zephyr_user), 1)
+// #endif
+// };
 
 static int16_t sample_buffer[ADC_NUM_CHANNELS];
 
@@ -64,7 +58,14 @@ struct adc_sequence sequence = {
 void main(void)
 {
 	int err;
-	const struct device *dev_adc = DEVICE_DT_GET(ADC_NODE);
+	const struct device *dev_adc = device_get_binding(ADS1015_LABEL);
+	if (dev_adc == NULL) {
+		printk("No ADC device %s found...\n", dev_adc->name);
+		return;
+	}
+	printk("Found ADC device %s\n", dev_adc->name);
+
+	// const struct device *dev_adc = DEVICE_DT_GET(ADC_NODE);
 
 	if (!device_is_ready(dev_adc)) {
 		printk("ADC device not found\n");
@@ -76,10 +77,6 @@ void main(void)
 	 */
 	for (uint8_t i = 0; i < ADC_NUM_CHANNELS; i++) {
 		channel_cfg.channel_id = channel_ids[i];
-#ifdef CONFIG_ADC_NRFX_SAADC
-		channel_cfg.input_positive = SAADC_CH_PSELP_PSELP_AnalogInput0
-					     + channel_ids[i];
-#endif
 
 		adc_channel_setup(dev_adc, &channel_cfg);
 
@@ -89,6 +86,7 @@ void main(void)
 	int32_t adc_vref = adc_ref_internal(dev_adc);
 
 	while (1) {
+		printk("ADC reading ...\n");
 		/*
 		 * Read sequence of channels (fails if not supported by MCU)
 		 */
@@ -118,5 +116,6 @@ void main(void)
 		printk("\n");
 
 		k_sleep(K_MSEC(1000));
+		return; // TODO: remove!
 	}
 }

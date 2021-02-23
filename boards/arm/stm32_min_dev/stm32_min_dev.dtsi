@@ -55,6 +55,21 @@
 	pinctrl-0 = < &i2c1_scl_pb6 &i2c1_sda_pb7 >;
 	status = "okay";
 	clock-frequency = <I2C_BITRATE_FAST>;
+
+
+	dac53608@48 {
+		compatible = "ti,dac53608";
+		reg = <0x48>;
+		#io-channel-cells = <1>;
+		label = "DAC53608";
+	};
+
+	ads1015@48 {
+		compatible = "ti,ads1015";
+		reg = <0x48>;
+		#io-channel-cells = <1>;
+		label = "ADS1015";
+	};
 };
 
 &i2c2 {
